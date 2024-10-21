@@ -2,12 +2,10 @@ use anyhow::Result;
 use near_sdk::serde_json::json;
 use omnibox::OmniInfo;
 
-pub const CONTRACT_WASM_PATH: &str = "../src/contract/target/near/contract.wasm";
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let wasm_bytes = include_bytes!("../src/contract/target/near/contract.wasm");
-    let omni = OmniInfo::new(wasm_bytes).await?;
+    let omni = OmniInfo::new().await?;
     println!("omni: {:?}", omni);
 
     println!("Calling contract...");
