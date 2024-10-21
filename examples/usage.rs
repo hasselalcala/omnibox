@@ -1,8 +1,6 @@
 use anyhow::Result;
 use near_sdk::serde_json::json;
-
-mod models;
-use models::OmniInfo;
+use omnibox::OmniInfo;
 
 pub const CONTRACT_WASM_PATH: &str = "../src/contract/target/near/contract.wasm";
 

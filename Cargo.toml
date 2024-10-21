@@ -3,6 +3,10 @@ name = "omnibox"
 version = "0.1.0"
 edition = "2021"
 
+[lib]
+name = "omnibox"
+path = "src/lib.rs"
+
 [dependencies]
 anyhow = "1.0.90"
 near-sdk = "5.5.0"
