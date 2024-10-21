@@ -2,7 +2,7 @@ use anyhow::Result;
 use near_sdk::serde_json::{json, Value};
 use near_workspaces::{network::Sandbox, Contract, Worker};
 
-const WASM_PATH: &str = "../contract/contract.wasm";
+const WASM_PATH: &str = "contract/contract.wasm";
 
 #[derive(Debug)]
 pub struct OmniInfo {
