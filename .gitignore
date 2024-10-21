@@ -1,2 +1,4 @@
 /src/contract/target
 target/
+.DS_Store
+
