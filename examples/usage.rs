@@ -2,7 +2,6 @@ use anyhow::Result;
 use near_sdk::serde_json::json;
 use omnibox::OmniInfo;
 
-
 #[tokio::main]
 async fn main() -> Result<()> {
     let omni = OmniInfo::new().await?;

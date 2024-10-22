@@ -1,5 +1,8 @@
 use anyhow::Result;
-use near_sdk::{serde_json::{json, Value}, NearToken};
+use near_sdk::{
+    serde_json::{json, Value},
+    NearToken,
+};
 use near_workspaces::{network::Sandbox, Account, Contract, Worker};
 use std::path::Path;
 
@@ -16,24 +19,41 @@ pub struct OmniInfo {
 impl OmniInfo {
     pub async fn new() -> Result<Self> {
         let worker = near_workspaces::sandbox().await?;
-        
-        let wasm_path = Path::new(DEFAULT_WASM_PATH).join("src").join("contract.wasm");
+
+        let wasm_path = Path::new(DEFAULT_WASM_PATH)
+            .join("src")
+            .join("contract.wasm");
         if !wasm_path.exists() {
             return Err(anyhow::anyhow!("WASM file not found at: {:?}", wasm_path));
         }
 
         let wasm_bytes = std::fs::read(&wasm_path)?;
 
-        let contract_account = worker.dev_create_account().await?;
+        let contract_account = worker
+            .root_account()?
+            .create_subaccount("contractmpc")
+            .initial_balance(TEN_NEAR)
+            .transact()
+            .await?
+            .into_result()?;
+
+        // Deploy the contract to the specific account
         let contract = contract_account.deploy(&wasm_bytes).await?.into_result()?;
 
         //Create a define account for the contract and owner
         //let root = worker.root_account()?;
         //let owner = create_subaccount(&root, "contractmpc").await?;
-        let owner = worker.dev_create_account().await?;
-        
+        let owner = worker
+            .root_account()?
+            .create_subaccount("ownermpc")
+            .initial_balance(TEN_NEAR)
+            .transact()
+            .await?
+            .into_result()?;
+
         println!("Owner: {:?}", owner.id());
         println!("Contract ID:  {:?}", contract_account.id());
+        println!("contract: {:?}", contract);
 
         Ok(Self {
             worker,
@@ -69,20 +89,18 @@ impl OmniInfo {
 
         Ok(result.json()?)
     }
-
-    
 }
 
-async fn create_subaccount(
-    root: &near_workspaces::Account,
-    name: &str,
-) -> Result<near_workspaces::Account, anyhow::Error> {
-    let subaccount = root
-        .create_subaccount(name)
-        .initial_balance(TEN_NEAR)
-        .transact()
-        .await?
-        .unwrap();
+// async fn create_subaccount(
+//     root: &near_workspaces::Account,
+//     name: &str,
+// ) -> Result<near_workspaces::Account, anyhow::Error> {
+//     let subaccount = root
+//         .create_subaccount(name)
+//         .initial_balance(TEN_NEAR)
+//         .transact()
+//         .await?
+//         .unwrap();
 
-    Ok(subaccount)
-}
+//     Ok(subaccount)
+// }
