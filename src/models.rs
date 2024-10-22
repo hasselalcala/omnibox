@@ -1,6 +1,6 @@
 use anyhow::Result;
 use near_sdk::{serde_json::{json, Value}, NearToken};
-use near_workspaces::{network::Sandbox, sandbox, Account, Contract, Worker};
+use near_workspaces::{network::Sandbox, Account, Contract, Worker};
 use std::path::Path;
 
 const DEFAULT_WASM_PATH: &str = env!("CARGO_MANIFEST_DIR");
@@ -30,6 +30,7 @@ impl OmniInfo {
         let owner = create_subaccount(&root, "contractmpc").await?;
 
         println!("Owner: {:?}", owner);
+        println!("Contract ID:  {:?}", contract.id());
 
         Ok(Self {
             worker,
