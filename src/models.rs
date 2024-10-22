@@ -1,9 +1,11 @@
 use anyhow::Result;
-use near_sdk::serde_json::{json, Value};
-use near_workspaces::{network::Sandbox, Account, Contract, Worker};
+use near_sdk::{serde_json::{json, Value}, NearToken};
+use near_workspaces::{network::Sandbox, sandbox, Account, Contract, Worker};
 use std::path::Path;
 
 const DEFAULT_WASM_PATH: &str = env!("CARGO_MANIFEST_DIR");
+const TEN_NEAR: NearToken = NearToken::from_near(10);
+
 #[derive(Debug)]
 pub struct OmniInfo {
     pub worker: Worker<Sandbox>,
@@ -22,7 +24,12 @@ impl OmniInfo {
 
         let wasm_bytes = std::fs::read(&wasm_path)?;
         let contract = worker.dev_deploy(&wasm_bytes).await?;
-        let owner = worker.dev_create_account().await?;
+
+        //Create a define account for the contract and owner
+        let root = worker.root_account()?;
+        let owner = create_subaccount(&root, "contractmpc").await?;
+
+        println!("Owner: {:?}", owner);
 
         Ok(Self {
             worker,
@@ -58,4 +65,20 @@ impl OmniInfo {
 
         Ok(result.json()?)
     }
+
+    
+}
+
+async fn create_subaccount(
+    root: &near_workspaces::Account,
+    name: &str,
+) -> Result<near_workspaces::Account, anyhow::Error> {
+    let subaccount = root
+        .create_subaccount(name)
+        .initial_balance(TEN_NEAR)
+        .transact()
+        .await?
+        .unwrap();
+
+    Ok(subaccount)
 }
