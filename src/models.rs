@@ -13,7 +13,7 @@ const TEN_NEAR: NearToken = NearToken::from_near(10);
 pub struct OmniInfo {
     pub worker: Worker<Sandbox>,
     pub contract: Contract,
-    pub owner: Account,
+    pub account: Account,
 }
 
 impl OmniInfo {
@@ -23,6 +23,7 @@ impl OmniInfo {
         let wasm_path = Path::new(DEFAULT_WASM_PATH)
             .join("src")
             .join("contract.wasm");
+
         if !wasm_path.exists() {
             return Err(anyhow::anyhow!("WASM file not found at: {:?}", wasm_path));
         }
@@ -40,10 +41,8 @@ impl OmniInfo {
         // Deploy the contract to the specific account
         let contract = contract_account.deploy(&wasm_bytes).await?.into_result()?;
 
-        //Create a define account for the contract and owner
-        //let root = worker.root_account()?;
-        //let owner = create_subaccount(&root, "contractmpc").await?;
-        let owner = worker
+        //Create an account to call the contract
+        let account = worker
             .root_account()?
             .create_subaccount("ownermpc")
             .initial_balance(TEN_NEAR)
@@ -51,20 +50,19 @@ impl OmniInfo {
             .await?
             .into_result()?;
 
-        println!("Owner: {:?}", owner.id());
+        println!("Account: {:?}", account.id());
         println!("Contract ID:  {:?}", contract_account.id());
-        println!("contract: {:?}", contract);
-
+        
         Ok(Self {
             worker,
             contract,
-            owner,
+            account,
         })
     }
 
     pub async fn call_contract(&self, method: &str, args: Option<Value>) -> Result<Option<Value>> {
         let result = self
-            .owner
+            .account
             .call(&self.contract.id(), method)
             .args_json(args.unwrap_or(json!({})))
             .transact()
@@ -82,7 +80,7 @@ impl OmniInfo {
 
     pub async fn view_contract(&self, method: &str, args: Option<Value>) -> Result<Value> {
         let result = self
-            .owner
+            .account
             .view(&self.contract.id(), method)
             .args_json(args.unwrap_or(json!({})))
             .await?;
