@@ -2,7 +2,6 @@
 name = "omnibox"
 version = "0.1.0"
 edition = "2021"
-include = ["src/contract.wasm"]
 
 [lib]
 name = "omnibox"
@@ -13,3 +12,6 @@ anyhow = "1.0.90"
 near-sdk = "5.5.0"
 near-workspaces = "0.14.1"
 tokio = "1.40.0"
+
+[build-dependencies]
+anyhow = "1.0"

@@ -3,7 +3,7 @@ use near_sdk::serde_json::{json, Value};
 use near_workspaces::{network::Sandbox, Account, Contract, Worker};
 use std::path::Path;
 
-const DEFAULT_WASM_PATH : &str = "src/contract.wasm";
+const DEFAULT_WASM_PATH: &str = env!("CARGO_MANIFEST_DIR");
 #[derive(Debug)]
 pub struct OmniInfo {
     pub worker: Worker<Sandbox>,
@@ -15,12 +15,12 @@ impl OmniInfo {
     pub async fn new() -> Result<Self> {
         let worker = near_workspaces::sandbox().await?;
         
-        let wasm_path = Path::new(DEFAULT_WASM_PATH);
+        let wasm_path = Path::new(DEFAULT_WASM_PATH).join("src").join("contract.wasm");
         if !wasm_path.exists() {
-            return Err(anyhow::anyhow!("WASM file not found at: {:?}", wasm_path.canonicalize()?));
+            return Err(anyhow::anyhow!("WASM file not found at: {:?}", wasm_path));
         }
 
-        let wasm_bytes = std::fs::read(wasm_path)?;
+        let wasm_bytes = std::fs::read(&wasm_path)?;
         let contract = worker.dev_deploy(&wasm_bytes).await?;
         let owner = worker.dev_create_account().await?;
 
