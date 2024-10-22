@@ -23,14 +23,17 @@ impl OmniInfo {
         }
 
         let wasm_bytes = std::fs::read(&wasm_path)?;
-        let contract = worker.dev_deploy(&wasm_bytes).await?;
+
+        let contract_account = worker.dev_create_account().await?;
+        let contract = contract_account.deploy(&wasm_bytes).await?.into_result()?;
 
         //Create a define account for the contract and owner
-        let root = worker.root_account()?;
-        let owner = create_subaccount(&root, "contractmpc").await?;
-
-        println!("Owner: {:?}", owner);
-        println!("Contract ID:  {:?}", contract.id());
+        //let root = worker.root_account()?;
+        //let owner = create_subaccount(&root, "contractmpc").await?;
+        let owner = worker.dev_create_account().await?;
+        
+        println!("Owner: {:?}", owner.id());
+        println!("Contract ID:  {:?}", contract_account.id());
 
         Ok(Self {
             worker,
