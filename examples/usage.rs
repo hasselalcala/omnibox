@@ -2,19 +2,20 @@ use anyhow::Result;
 use near_sdk::serde_json::json;
 use omnibox::OmniInfo;
 
+
 #[tokio::main]
 async fn main() -> Result<()> {
+    //Initialize the OmniInfo
     let omni = OmniInfo::new().await?;
-    println!("omni: {:?}", omni);
 
     println!("Calling contract...");
     // Set the greeting
-    let set_result = omni
-        .call_contract(
+    let set_result = omni.call_contract(
             "set_greeting",
-            Some(json!({"greeting": "Hola desde OmniInfo"})),
+            Some(json!({"greeting": "Hello from Hassel"})),
         )
         .await?;
+
     match set_result {
         Some(value) => println!("Set greeting result: {:?}", value),
         None => println!("Greeting set successfully (no return value)"),
