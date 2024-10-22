@@ -2,6 +2,7 @@
 name = "omnibox"
 version = "0.1.0"
 edition = "2021"
+include = ["src/contract.wasm"]
 
 [lib]
 name = "omnibox"
