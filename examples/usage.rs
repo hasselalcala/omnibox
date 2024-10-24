@@ -2,15 +2,15 @@ use anyhow::Result;
 use near_sdk::serde_json::json;
 use omnibox::OmniInfo;
 
-
 #[tokio::main]
-async fn main() -> Result<()> {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
     //Initialize the OmniInfo
     let omni = OmniInfo::new().await?;
 
     println!("Calling contract...");
     // Set the greeting
-    let set_result = omni.call_contract(
+    let set_result = omni
+        .call_contract(
             "set_greeting",
             Some(json!({"greeting": "Hello from Hassel"})),
         )

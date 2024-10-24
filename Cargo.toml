@@ -12,6 +12,13 @@ anyhow = "1.0.90"
 near-sdk = "5.5.0"
 near-workspaces = "0.14.1"
 tokio = "1.40.0"
+near-primitives = "0.26.0"
+serde_json = "1.0.132"
+near-jsonrpc-client = "0.13.0"
+near-jsonrpc-primitives = "0.26.0"
+serde = "1.0.213"
+async-trait = "0.1.83"
+near-crypto = "0.26.0"
 
 [build-dependencies]
 anyhow = "1.0"

@@ -1,10 +1,15 @@
+use crate::{block_streamer::start_polling, NonceManager, Signer, TransactionProcessor};
 use anyhow::Result;
+use near_crypto::InMemorySigner;
+use near_jsonrpc_client::JsonRpcClient;
 use near_sdk::{
     serde_json::{json, Value},
     NearToken,
 };
+
 use near_workspaces::{network::Sandbox, Account, Contract, Worker};
 use std::path::Path;
+use std::sync::Arc;
 
 const DEFAULT_WASM_PATH: &str = env!("CARGO_MANIFEST_DIR");
 const TEN_NEAR: NearToken = NearToken::from_near(10);
@@ -14,10 +19,11 @@ pub struct OmniInfo {
     pub worker: Worker<Sandbox>,
     pub contract: Contract,
     pub account: Account,
+    pub last_block_processed: u64,
 }
 
 impl OmniInfo {
-    pub async fn new() -> Result<Self> {
+    pub async fn new() -> Result<Self, Box<dyn std::error::Error>> {
         let worker = near_workspaces::sandbox().await?;
 
         let wasm_path = Path::new(DEFAULT_WASM_PATH)
@@ -25,7 +31,7 @@ impl OmniInfo {
             .join("contract.wasm");
 
         if !wasm_path.exists() {
-            return Err(anyhow::anyhow!("WASM file not found at: {:?}", wasm_path));
+            return Err(anyhow::anyhow!("WASM file not found at: {:?}", wasm_path).into());
         }
 
         let wasm_bytes = std::fs::read(&wasm_path)?;
@@ -44,7 +50,7 @@ impl OmniInfo {
         //Create an account to call the contract
         let account = worker
             .root_account()?
-            .create_subaccount("ownermpc")
+            .create_subaccount("accountmpc")
             .initial_balance(TEN_NEAR)
             .transact()
             .await?
@@ -52,11 +58,29 @@ impl OmniInfo {
 
         println!("Account: {:?}", account.id());
         println!("Contract ID:  {:?}", contract_account.id());
+
+        // Prepare the RPC client
+        let rpc_address = worker.rpc_addr();
+        let rpc_client = Arc::new(JsonRpcClient::connect(rpc_address));
+
+        let last_block_processed = worker.view_block().await?.height();
         
+        let signer = InMemorySigner {
+            account_id: account.id().clone(),
+            public_key: account.secret_key().public_key().to_string().parse()?,
+            secret_key: account.secret_key().to_string().parse()?,
+        };
+
+        let nonce_manager = Arc::new(NonceManager::new(rpc_client.clone(), Arc::new(signer)));
+        let processor: Arc<dyn TransactionProcessor> = Arc::new(Signer::new(account.id().clone(), nonce_manager));
+
+        start_polling(&rpc_client, last_block_processed, processor).await?;
+
         Ok(Self {
             worker,
             contract,
             account,
+            last_block_processed,
         })
     }
 
@@ -88,17 +112,3 @@ impl OmniInfo {
         Ok(result.json()?)
     }
 }
-
-// async fn create_subaccount(
-//     root: &near_workspaces::Account,
-//     name: &str,
-// ) -> Result<near_workspaces::Account, anyhow::Error> {
-//     let subaccount = root
-//         .create_subaccount(name)
-//         .initial_balance(TEN_NEAR)
-//         .transact()
-//         .await?
-//         .unwrap();
-
-//     Ok(subaccount)
-// }
