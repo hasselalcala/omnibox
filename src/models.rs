@@ -14,6 +14,7 @@ use tokio::task::JoinHandle;
 
 const DEFAULT_WASM_PATH: &str = env!("CARGO_MANIFEST_DIR");
 const TEN_NEAR: NearToken = NearToken::from_near(10);
+const HUNDRED_NEAR: NearToken = NearToken::from_near(100);
 
 #[derive(Debug)]
 pub struct OmniInfo {
@@ -41,7 +42,7 @@ impl OmniInfo {
         let contract_account = worker
             .root_account()?
             .create_subaccount("contractmpc")
-            .initial_balance(TEN_NEAR)
+            .initial_balance(HUNDRED_NEAR)
             .transact()
             .await?
             .into_result()?;
@@ -53,7 +54,7 @@ impl OmniInfo {
         let account = worker
             .root_account()?
             .create_subaccount("accountmpc")
-            .initial_balance(TEN_NEAR)
+            .initial_balance(HUNDRED_NEAR)
             .transact()
             .await?
             .into_result()?;
