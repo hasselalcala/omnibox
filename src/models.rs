@@ -101,6 +101,8 @@ impl OmniInfo {
         let result = self
             .account
             .call(&self.contract.id(), method)
+            .deposit(TEN_NEAR)
+            .max_gas()
             .args_json(args.unwrap_or(json!({})))
             .transact()
             .await?;
