@@ -10,6 +10,7 @@ use near_sdk::{
 use near_workspaces::{network::Sandbox, Account, Contract, Worker};
 use std::path::Path;
 use std::sync::Arc;
+use tokio::task::JoinHandle;
 
 const DEFAULT_WASM_PATH: &str = env!("CARGO_MANIFEST_DIR");
 const TEN_NEAR: NearToken = NearToken::from_near(10);
@@ -20,10 +21,11 @@ pub struct OmniInfo {
     pub contract: Contract,
     pub account: Account,
     pub last_block_processed: u64,
+    polling_handle: JoinHandle<()>,
 }
 
 impl OmniInfo {
-    pub async fn new() -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn new() -> Result<Self, Box<dyn std::error::Error + Send + Sync>> {
         let worker = near_workspaces::sandbox().await?;
 
         let wasm_path = Path::new(DEFAULT_WASM_PATH)
@@ -74,13 +76,24 @@ impl OmniInfo {
         let nonce_manager = Arc::new(NonceManager::new(rpc_client.clone(), Arc::new(signer)));
         let processor: Arc<dyn TransactionProcessor> = Arc::new(Signer::new(account.id().clone(), nonce_manager));
 
-        start_polling(&rpc_client, last_block_processed, processor).await?;
+        //start_polling(&rpc_client, last_block_processed, processor).await?;
+
+
+        let polling_handle = tokio::spawn({
+            let rpc_client = rpc_client.clone();
+            async move {
+                if let Err(e) = start_polling(&rpc_client, last_block_processed, processor).await {
+                    eprintln!("Polling error: {}", e);  
+                }
+            }
+        });
 
         Ok(Self {
             worker,
             contract,
             account,
             last_block_processed,
+            polling_handle,
         })
     }
 

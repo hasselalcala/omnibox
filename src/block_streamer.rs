@@ -34,7 +34,7 @@ pub async fn fetch_block(
 pub async fn fetch_chunk(
     client: &JsonRpcClient,
     chunk_hash: CryptoHash,
-) -> Result<ChunkView, Box<dyn std::error::Error>> {
+) -> Result<ChunkView, Box<dyn std::error::Error + Send + Sync>> {
     let chunk_reference = ChunkReference::ChunkHash {
         chunk_id: chunk_hash,
     };
@@ -69,7 +69,7 @@ pub async fn find_transaction_in_block(
     block: &BlockView,
     account_id: &str,
     method_name: &str,
-) -> Result<Option<(String, AccountId)>, Box<dyn std::error::Error>> {
+) -> Result<Option<(String, AccountId)>, Box<dyn std::error::Error + Send + Sync>> {
     for chunk_header in &block.chunks {
         let chunk_hash = chunk_header.chunk_hash;
         let chunk = fetch_chunk(client, chunk_hash).await?;
@@ -101,7 +101,7 @@ pub async fn get_logs(
     client: &JsonRpcClient,
     tx_hash: &str,
     sender_account_id: &AccountId,
-) -> Result<Vec<String>, Box<dyn std::error::Error>> {
+) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
     let tx_hash =
         CryptoHash::from_str(tx_hash).map_err(|e| format!("Failed to parse tx_hash: {}", e))?;
 
@@ -144,7 +144,7 @@ pub fn extract_logs(response: &RpcTransactionResponse) -> Vec<String> {
     logs
 }
 
-fn process_log(log: &str) -> Result<EventData, Box<dyn std::error::Error>> {
+fn process_log(log: &str) -> Result<EventData, Box<dyn std::error::Error + Send + Sync>> {
     let json_start = log.find("{").ok_or("JSON not found in log")?;
     let json_str = &log[json_start..];
 
@@ -161,7 +161,7 @@ pub async fn start_polling(
     client: &JsonRpcClient,
     mut last_processed_block: u64, // Cambiar a mutable
     processor: Arc<dyn TransactionProcessor>,
-) -> Result<(), Box<dyn std::error::Error>> {
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     loop {
         println!("Last processed block: {}", last_processed_block);
 

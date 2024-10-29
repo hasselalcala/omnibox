@@ -3,7 +3,7 @@ use near_sdk::serde_json::json;
 use omnibox::OmniInfo;
 
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     //Initialize the OmniInfo
     let omni = OmniInfo::new().await?;
 
