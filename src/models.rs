@@ -28,7 +28,7 @@ impl OmniInfo {
 
         let wasm_path = Path::new(DEFAULT_WASM_PATH)
             .join("src")
-            .join("contract.wasm");
+            .join("mpc_test_contract.wasm");
 
         if !wasm_path.exists() {
             return Err(anyhow::anyhow!("WASM file not found at: {:?}", wasm_path).into());
