@@ -110,15 +110,15 @@ impl OmniInfo {
             .transact()
             .await?;
 
+        println!("RESULT CALL CONTRACT: {:?}", result.outcome());
+
         if result.is_success() {
             Ok(result.json().ok())
         } else {
-            println!("SIGN RESULT: {:?}", result.outcome());
-            // Err(anyhow::anyhow!(
-            //     "Contract call failed: {:?}",
-            //     result.outcome()
-            // ))
-            Ok(None)
+            Err(anyhow::anyhow!(
+                "Contract call failed: {:?}",
+                result.outcome()
+            ))
         }
     }
 
