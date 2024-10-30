@@ -102,13 +102,13 @@ impl OmniInfo {
 
     pub async fn call_contract(&self, method: &str, args: Option<Value>) -> Result<Option<Value>> {
         let result = self
-            .contract
-            .call( method)
+            .account
+            .call(&self.contract.id(), method)
             .args_json(args.unwrap_or(json!({})))
             .transact()
             .await?;
 
-        println!("RESULT CALL CONTRACT: {:?}", result.outcome());
+        println!("RESULT CALL CONTRACT: {:?}", result);
 
         if result.is_success() {
             Ok(result.json().ok())
