@@ -159,7 +159,7 @@ fn process_log(log: &str) -> Result<EventData, Box<dyn std::error::Error + Send 
 
 pub async fn start_polling(
     client: &JsonRpcClient,
-    mut last_processed_block: u64, // Cambiar a mutable
+    mut last_processed_block: u64, 
     processor: Arc<dyn TransactionProcessor>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
     loop {

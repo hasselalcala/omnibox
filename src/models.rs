@@ -104,11 +104,13 @@ impl OmniInfo {
         let result = self
             .account
             .call(&self.contract.id(), method)
+            .deposit(TEN_NEAR)
+            .max_gas()
             .args_json(args.unwrap_or(json!({})))
             .transact()
             .await?;
 
-        println!("RESULT CALL CONTRACT: {:?}", result);
+        println!("RESULT CALL CONTRACT: {:?}", result.outcome());
 
         if result.is_success() {
             Ok(result.json().ok())
