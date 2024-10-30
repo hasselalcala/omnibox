@@ -12,6 +12,7 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
 
+
 const DEFAULT_WASM_PATH: &str = env!("CARGO_MANIFEST_DIR");
 const TEN_NEAR: NearToken = NearToken::from_near(10);
 const HUNDRED_NEAR: NearToken = NearToken::from_near(100);
@@ -114,6 +115,7 @@ impl OmniInfo {
                 result.outcome()
             ))
         }
+    
     }
 
     pub async fn view_contract(&self, method: &str, args: Option<Value>) -> Result<Value> {
