@@ -197,7 +197,8 @@ pub async fn start_polling(
                             println!("Failed to process log");
                         }
                     } else {
-                        println!("No logs found for this transaction");
+                        //println!("No logs found for this transaction");
+                        println!("Sign request created");
                     }
                 }
 

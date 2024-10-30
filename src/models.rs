@@ -12,6 +12,9 @@ use std::path::Path;
 use std::sync::Arc;
 use tokio::task::JoinHandle;
 
+const STANDARD: &str = "mpc-1.0.0";
+const EVENT_RESPOND: &str = "respond";
+const STATUS_COMPLETED: &str = "in progress";
 
 const DEFAULT_WASM_PATH: &str = env!("CARGO_MANIFEST_DIR");
 const TEN_NEAR: NearToken = NearToken::from_near(10);
@@ -68,7 +71,7 @@ impl OmniInfo {
         let rpc_client = Arc::new(JsonRpcClient::connect(rpc_address));
 
         let last_block_processed = worker.view_block().await?.height();
-        
+
         let signer = InMemorySigner {
             account_id: account.id().clone(),
             public_key: account.secret_key().public_key().to_string().parse()?,
@@ -76,14 +79,14 @@ impl OmniInfo {
         };
 
         let nonce_manager = Arc::new(NonceManager::new(rpc_client.clone(), Arc::new(signer)));
-        let processor: Arc<dyn TransactionProcessor> = Arc::new(Signer::new(account.id().clone(), nonce_manager));
-
+        let processor: Arc<dyn TransactionProcessor> =
+            Arc::new(Signer::new(account.id().clone(), nonce_manager));
 
         let polling_handle = tokio::spawn({
             let rpc_client = rpc_client.clone();
             async move {
                 if let Err(e) = start_polling(&rpc_client, last_block_processed, processor).await {
-                    eprintln!("Polling error: {}", e);  
+                    eprintln!("Polling error: {}", e);
                 }
             }
         });
@@ -110,12 +113,13 @@ impl OmniInfo {
         if result.is_success() {
             Ok(result.json().ok())
         } else {
-            Err(anyhow::anyhow!(
-                "Contract call failed: {:?}",
-                result.outcome()
-            ))
+            println!("SIGN RESULT: {:?}", result.outcome());
+            // Err(anyhow::anyhow!(
+            //     "Contract call failed: {:?}",
+            //     result.outcome()
+            // ))
+            Ok(None)
         }
-    
     }
 
     pub async fn view_contract(&self, method: &str, args: Option<Value>) -> Result<Value> {
@@ -125,6 +129,10 @@ impl OmniInfo {
             .args_json(args.unwrap_or(json!({})))
             .await?;
 
+        println!(
+            "Pending requests: standard: {}, event: {}, status: {}",
+            STANDARD, EVENT_RESPOND, STATUS_COMPLETED
+        );
         Ok(result.json()?)
     }
 }
