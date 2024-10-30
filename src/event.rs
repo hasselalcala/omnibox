@@ -1,15 +1,17 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Deserialize, Debug, Clone)]
-pub struct EventData {
-    pub account_id: String,
-    pub greeting: String,
-}
-
-#[derive(Deserialize, Debug)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct EventLog {
     pub standard: String,
-    pub version: String,
     pub event: String,
     pub data: Vec<EventData>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct EventData {
+    pub request_id: Option<u32>,
+    pub yield_id: Option<String>,
+    pub prompt: Option<String>,
+    pub status: String,
+    pub response: Option<String>,
 }
