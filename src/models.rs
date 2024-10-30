@@ -31,7 +31,7 @@ impl OmniInfo {
 
         let wasm_path = Path::new(DEFAULT_WASM_PATH)
             .join("src")
-            .join("mpc_test_contract.wasm");
+            .join("mpc_contract.wasm");
 
         if !wasm_path.exists() {
             return Err(anyhow::anyhow!("WASM file not found at: {:?}", wasm_path).into());
@@ -76,8 +76,6 @@ impl OmniInfo {
 
         let nonce_manager = Arc::new(NonceManager::new(rpc_client.clone(), Arc::new(signer)));
         let processor: Arc<dyn TransactionProcessor> = Arc::new(Signer::new(account.id().clone(), nonce_manager));
-
-        //start_polling(&rpc_client, last_block_processed, processor).await?;
 
 
         let polling_handle = tokio::spawn({
