@@ -91,9 +91,10 @@ impl OmniInfo {
         let tx_builder = Arc::new(Mutex::new(TxBuilder::new(signer.clone(), worker.clone())));
         let tx_sender = Arc::new(TxSender::new(rpc_client.clone(), DEFAULT_TIMEOUT));
 
-        let processor: Arc<dyn TransactionProcessor> =
-            Arc::new(Signer::new(account.id().clone(), nonce_manager.clone(), tx_builder.clone(), tx_sender.clone()));
+        //let processor: Arc<dyn TransactionProcessor> =
+          //  Arc::new(Signer::new(account.id().clone(), nonce_manager.clone(), tx_builder.clone(), tx_sender.clone()));
 
+        let processor = Arc::new(Signer::new(account.id().clone(), nonce_manager.clone()));
 
         let polling_handle = tokio::spawn({
             let rpc_client = rpc_client.clone();
@@ -158,6 +159,8 @@ impl OmniInfo {
         //event_data: EventData,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>{
 
+        println!("SIGNING: {:?}", prompt);
+        
         // Transaction to send the sign
         let (nonce, block_hash) = self.nonce_manager.get_nonce_and_tx_hash().await?;
 
