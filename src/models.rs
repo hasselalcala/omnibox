@@ -44,7 +44,7 @@ impl OmniInfo {
 
         let wasm_path = Path::new(DEFAULT_WASM_PATH)
             .join("src")
-            .join("mpc_contract.wasm");
+            .join("contract.wasm");
 
         if !wasm_path.exists() {
             return Err(anyhow::anyhow!("WASM file not found at: {:?}", wasm_path).into());
@@ -129,13 +129,33 @@ impl OmniInfo {
 
         println!("RESULT CALL CONTRACT: {:?}", result.outcome());
 
-        if result.is_success() {
-            Ok(result.json().ok())
-        } else {
+        // if result.is_success() {
+        //     Ok(result.json().ok())
+        // } else {
+        //     Err(anyhow::anyhow!(
+        //         "Contract call failed: {:?}",
+        //         result.outcome()
+        //     ))
+        // }
+        // match result.is_success() {
+        //     near_workspaces::types::ExecutionStatus::SuccessValue(_) |
+        //     near_workspaces::types::ExecutionStatus::SuccessReceiptId(_) => {
+        //         Ok(result.json().ok())
+        //     },
+        //     _ => {
+        //         Err(anyhow::anyhow!(
+        //             "Contract call failed: {:?}",
+        //             result.outcome()
+        //         ))
+        //     }
+        // }
+        if result.is_failure() {
             Err(anyhow::anyhow!(
                 "Contract call failed: {:?}",
                 result.outcome()
             ))
+        } else {
+            Ok(result.json().ok())
         }
     }
 
@@ -206,9 +226,9 @@ pub async fn sign(
         let mut tx_builder = self.tx_builder.lock().await;
 
         let (tx, _) = tx_builder
-            .with_method_name("sign")
+            .with_method_name("set_greeting")
             .with_args(serde_json::json!({
-                "prompt": prompt.clone()
+                "greeting": prompt.clone()
             }))
             .build(nonce, block_hash);
 
