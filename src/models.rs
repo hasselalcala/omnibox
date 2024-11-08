@@ -1,4 +1,3 @@
-use crate::{block_streamer::start_polling, NonceManager, Signer, TransactionProcessor};
 use anyhow::Result;
 use near_crypto::InMemorySigner;
 use near_jsonrpc_client::JsonRpcClient;
@@ -8,9 +7,16 @@ use near_sdk::{
 };
 
 use near_workspaces::{network::Sandbox, Account, Contract, Worker};
-use std::path::Path;
-use std::sync::Arc;
-use tokio::task::JoinHandle;
+use std::{path::Path, sync::Arc};
+use tokio::{task::JoinHandle, sync::Mutex};
+use near_jsonrpc_client::methods;
+use near_primitives::views::TxExecutionStatus;
+use near_primitives::transaction::Transaction;
+use crate::{EventData, block_streamer::extract_logs};
+
+use crate::{TxBuilder, TxSender};
+use crate::{block_streamer::start_polling, NonceManager, Signer, TransactionProcessor, constants::*};
+
 
 const STANDARD: &str = "mpc-1.0.0";
 const EVENT_RESPOND: &str = "respond";
@@ -26,7 +32,10 @@ pub struct OmniInfo {
     pub contract: Contract,
     pub account: Account,
     pub last_block_processed: u64,
-    polling_handle: JoinHandle<()>,
+    pub polling_handle: JoinHandle<()>,
+    pub nonce_manager: Arc<NonceManager>,
+    pub tx_builder: Arc<Mutex<TxBuilder>>,
+    pub tx_sender: Arc<TxSender>,
 }
 
 impl OmniInfo {
@@ -54,7 +63,7 @@ impl OmniInfo {
         // Deploy the contract to the specific account
         let contract = contract_account.deploy(&wasm_bytes).await?.into_result()?;
 
-        //Create an account to call the contract
+        //Create an account to call the contract (REMOVE THIS)
         let account = worker
             .root_account()?
             .create_subaccount("accountmpc")
@@ -78,9 +87,13 @@ impl OmniInfo {
             secret_key: account.secret_key().to_string().parse()?,
         };
 
-        let nonce_manager = Arc::new(NonceManager::new(rpc_client.clone(), Arc::new(signer)));
+        let nonce_manager = Arc::new(NonceManager::new(rpc_client.clone(), Arc::new(signer.clone())));
+        let tx_builder = Arc::new(Mutex::new(TxBuilder::new(signer.clone(), worker.clone())));
+        let tx_sender = Arc::new(TxSender::new(rpc_client.clone(), DEFAULT_TIMEOUT));
+
         let processor: Arc<dyn TransactionProcessor> =
-            Arc::new(Signer::new(account.id().clone(), nonce_manager));
+            Arc::new(Signer::new(account.id().clone(), nonce_manager.clone(), tx_builder.clone(), tx_sender.clone()));
+
 
         let polling_handle = tokio::spawn({
             let rpc_client = rpc_client.clone();
@@ -97,6 +110,9 @@ impl OmniInfo {
             account,
             last_block_processed,
             polling_handle,
+            nonce_manager,
+            tx_builder,
+            tx_sender,
         })
     }
 
@@ -134,5 +150,40 @@ impl OmniInfo {
             STANDARD, EVENT_RESPOND, STATUS_COMPLETED
         );
         Ok(result.json()?)
+    }
+
+    pub async fn sign(
+        &self,
+        event_data: EventData,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>{
+
+        println!("Signing transaction: {:?}", event_data);
+
+        // Transaction to send the sign
+        let (nonce, block_hash) = self.nonce_manager.get_nonce_and_tx_hash().await?;
+
+        let mut tx_builder = self.tx_builder.lock().await;
+
+        let (tx, _) = tx_builder
+            .with_method_name("sign")
+            .with_args(serde_json::json!({
+                "prompt": event_data.prompt  
+            }))
+            .build(nonce, block_hash);
+
+        let signer = near_crypto::Signer::from(tx_builder.signer.clone());
+        let signed_tx = Transaction::V0(tx).sign(&signer);
+
+        let request = methods::send_tx::RpcSendTransactionRequest {
+            signed_transaction: signed_tx,
+            wait_until: TxExecutionStatus::Final,
+        };
+
+        let tx_response = self.tx_sender.send_transaction(request).await?;
+        let log_tx = extract_logs(&tx_response);
+
+        println!("SIGN_LOG: {:?}", log_tx);
+
+        Ok(())
     }
 }

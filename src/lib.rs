@@ -5,6 +5,8 @@ pub mod models;
 pub mod nonce_manager;
 pub mod signer;
 pub mod transaction_processor;
+pub mod tx_builder;
+pub mod tx_sender;
 
 pub use block_streamer::*;
 pub use constants::*;
@@ -13,3 +15,5 @@ pub use models::OmniInfo;
 pub use nonce_manager::*;
 pub use signer::*;
 pub use transaction_processor::*;
+pub use tx_builder::*;
+pub use tx_sender::*;

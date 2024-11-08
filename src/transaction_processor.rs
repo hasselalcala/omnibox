@@ -7,4 +7,9 @@ pub trait TransactionProcessor: Send + Sync {
         &self,
         event_data: EventData,
     ) -> Result<bool, Box<dyn std::error::Error + Send + Sync>>;
+
+    async fn respond(
+        &self,
+        event_data: EventData,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>;
 }

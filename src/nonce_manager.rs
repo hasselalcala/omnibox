@@ -8,6 +8,7 @@ use near_primitives::views::QueryRequest;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+#[derive(Debug)]
 pub struct NonceManager {
     client: Arc<JsonRpcClient>,
     signer: Arc<InMemorySigner>,
