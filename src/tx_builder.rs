@@ -32,7 +32,7 @@ impl TxBuilder {
             network,
             method_name: String::new(),
             args: Value::Null,
-            gas: 100_000_000_000_000,
+            gas: 300_000_000_000_000,
             deposit: 0,
         }
     }

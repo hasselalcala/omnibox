@@ -70,10 +70,14 @@ impl TransactionProcessor for Signer {
             ).into());
         }
     
-        // Construir los argumentos para la llamada al contrato
+        let message = event_data.prompt.ok_or("prompt is required")?;
+        let signer = near_crypto::Signer::from(tx_builder.signer.clone());
+        let signature = signer.sign(message.as_bytes());
+       // let signature_hex = hex::encode(signature.try_to_vec()?);
+    
         let args = serde_json::json!({
-            "yield_id": bytes.as_slice(),  // Enviamos los bytes directamente
-            "response": "Hello!"
+            "yield_id": bytes.as_slice(),  
+            "response": signature.to_string()
         });
     
         println!("   Args: {:?}", args);
