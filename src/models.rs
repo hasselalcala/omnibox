@@ -153,23 +153,62 @@ impl OmniInfo {
         Ok(result.json()?)
     }
 
-    pub async fn sign(
-        &self,
-        prompt: String,
-        //event_data: EventData,
-    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>{
+    // pub async fn sign(
+    //     &self,
+    //     prompt: String,
+    //     //event_data: EventData,
+    // ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>{
 
-        println!("SIGNING: {:?}", prompt);
-        
-        // Transaction to send the sign
+    //     println!("SIGNING: {:?}", prompt);
+
+    //     // Transaction to send the sign
+    //     let (nonce, block_hash) = self.nonce_manager.get_nonce_and_tx_hash().await?;
+
+    //     let mut tx_builder = self.tx_builder.lock().await;
+
+    //     let (tx, _) = tx_builder
+    //         .with_method_name("sign")
+    //         .with_args(serde_json::json!({
+    //             "prompt": prompt  
+    //         }))
+    //         .build(nonce, block_hash);
+
+    //     let signer = near_crypto::Signer::from(tx_builder.signer.clone());
+    //     let signed_tx = Transaction::V0(tx).sign(&signer);
+
+    //     let request = methods::send_tx::RpcSendTransactionRequest {
+    //         signed_transaction: signed_tx,
+    //         wait_until: TxExecutionStatus::Final,
+    //     };
+
+    //     let tx_response = self.tx_sender.send_transaction(request).await?;
+    //     let log_tx = extract_logs(&tx_response);
+
+    //     println!("SIGN_LOG: {:?}", log_tx);
+
+    //     Ok(())
+    // }
+
+
+
+pub async fn sign(
+    &self,
+    prompt: String,
+) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    println!("SIGNING: {:?}", prompt);
+    
+    // Aumentar el número de intentos y añadir retry logic
+    let max_attempts = 3;
+    let mut attempt = 0;
+    
+    while attempt < max_attempts {
         let (nonce, block_hash) = self.nonce_manager.get_nonce_and_tx_hash().await?;
-
         let mut tx_builder = self.tx_builder.lock().await;
 
         let (tx, _) = tx_builder
             .with_method_name("sign")
             .with_args(serde_json::json!({
-                "prompt": prompt  
+                "prompt": prompt.clone()
             }))
             .build(nonce, block_hash);
 
@@ -181,11 +220,25 @@ impl OmniInfo {
             wait_until: TxExecutionStatus::Final,
         };
 
-        let tx_response = self.tx_sender.send_transaction(request).await?;
-        let log_tx = extract_logs(&tx_response);
-
-        println!("SIGN_LOG: {:?}", log_tx);
-
-        Ok(())
+        match self.tx_sender.send_transaction(request).await {
+            Ok(tx_response) => {
+                let log_tx = extract_logs(&tx_response);
+                println!("SIGN_LOG: {:?}", log_tx);
+                return Ok(());
+            }
+            Err(e) => {
+                attempt += 1;
+                if attempt == max_attempts {
+                    return Err(e.into());
+                }
+                println!("Attempt {} failed, retrying...", attempt);
+                tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+            }
+        }
     }
+    
+    Err(anyhow::anyhow!("Failed after {} attempts", max_attempts).into())
+}
+
+
 }
