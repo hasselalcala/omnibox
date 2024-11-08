@@ -72,16 +72,11 @@ impl TxBuilder {
             }))],
         };
 
-        //(transaction.clone(), transaction.get_hash_and_size().0)
         let tx_hash = Transaction::V0(transaction.clone()).get_hash_and_size().0;
         (transaction, tx_hash)
     }
 
     fn get_receiver_id(&self) -> AccountId {
-        // match self.network {
-        //     Networks::Mainnet => EARTHMIND_PROTOCOL_CONTRACT_MAINNET.parse().unwrap(),
-        //     Networks::Testnet => EARTHMIND_PROTOCOL_CONTRACT_TESTNET.parse().unwrap(),
-        // }
         ACCOUNT_TO_LISTEN.parse().unwrap()
     }
 }

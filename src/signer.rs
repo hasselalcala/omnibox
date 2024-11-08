@@ -57,7 +57,6 @@ impl TransactionProcessor for Signer {
         let (nonce, block_hash) = self.nonce_manager.get_nonce_and_tx_hash().await?;
         let mut tx_builder = self.tx_builder.lock().await;
     
-        // Convertir el yield_id hexadecimal a CryptoHash
         let yield_id = event_data.yield_id.as_ref().ok_or("yield_id is required")?;
         let bytes = hex::decode(yield_id.trim()).map_err(|e| {
             anyhow::anyhow!("Error to decode yield_id as hex: {}", e)
@@ -73,7 +72,6 @@ impl TransactionProcessor for Signer {
         let message = event_data.prompt.ok_or("prompt is required")?;
         let signer = near_crypto::Signer::from(tx_builder.signer.clone());
         let signature = signer.sign(message.as_bytes());
-       // let signature_hex = hex::encode(signature.try_to_vec()?);
     
         let args = serde_json::json!({
             "yield_id": bytes.as_slice(),  
