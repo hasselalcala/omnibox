@@ -154,10 +154,9 @@ impl OmniInfo {
 
     pub async fn sign(
         &self,
-        event_data: EventData,
+        prompt: String,
+        //event_data: EventData,
     ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>{
-
-        println!("Signing transaction: {:?}", event_data);
 
         // Transaction to send the sign
         let (nonce, block_hash) = self.nonce_manager.get_nonce_and_tx_hash().await?;
@@ -167,7 +166,7 @@ impl OmniInfo {
         let (tx, _) = tx_builder
             .with_method_name("sign")
             .with_args(serde_json::json!({
-                "prompt": event_data.prompt  
+                "prompt": prompt  
             }))
             .build(nonce, block_hash);
 
