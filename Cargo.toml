@@ -19,6 +19,7 @@ near-jsonrpc-primitives = "0.26.0"
 serde = "1.0.210"
 async-trait = "0.1.83"
 near-crypto = "0.26.0"
+hex = "0.4.3"
 
 [build-dependencies]
 anyhow = "1.0"

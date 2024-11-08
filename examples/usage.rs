@@ -1,31 +1,19 @@
 use anyhow::Result;
-use near_sdk::serde_json::json;
 use omnibox::OmniInfo;
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    //Initialize the OmniInfo
     let omni = OmniInfo::new().await?;
 
-    println!("Calling contract...");
-    // Set the greeting
-    let set_result = omni
-        .call_contract(
-            "set_greeting",
-            Some(json!({"greeting": "Hello from Hassel"})),
-        )
-        .await?;
+    //tokio::time::sleep(tokio::time::Duration::from_secs(5)).await;
 
-    match set_result {
-        Some(value) => println!("Set greeting result: {:?}", value),
-        None => println!("Greeting set successfully (no return value)"),
+    println!("\n🚀 Creating new sign request...");
+    match omni.sign("Message to sign".to_string()).await {
+        Ok(_) => println!("✅ Sign request completed successfully"),
+        Err(e) => println!("❌ Sign request failed: {:?}", e),
     }
 
-    println!("Getting greeting...");
-    // Get the greeting
-    let get_result = omni.view_contract("get_greeting", None).await?;
-    let greeting = get_result.as_str().unwrap_or("Failed to get greeting");
-    println!("Greeting: {}", greeting);
+    tokio::time::sleep(tokio::time::Duration::from_secs(30)).await;
 
     Ok(())
 }

@@ -1,13 +1,13 @@
 use near_crypto::InMemorySigner;
+use near_primitives::transaction::Transaction;
 use near_primitives::{
     action::{Action, FunctionCallAction},
     hash::CryptoHash,
     transaction::TransactionV0,
 };
 use near_sdk::AccountId;
-use serde_json::Value;
 use near_workspaces::{network::Sandbox, Worker};
-use near_primitives::transaction::Transaction;
+use serde_json::Value;
 
 use crate::constants::*;
 type Networks = Worker<Sandbox>;
@@ -15,7 +15,10 @@ type Networks = Worker<Sandbox>;
 #[derive(Debug)]
 pub struct TxBuilder {
     pub signer: InMemorySigner,
+
+    #[allow(dead_code)]
     network: Networks,
+
     method_name: String,
     args: Value,
     gas: u64,
@@ -68,7 +71,7 @@ impl TxBuilder {
                 deposit: self.deposit,
             }))],
         };
-        
+
         //(transaction.clone(), transaction.get_hash_and_size().0)
         let tx_hash = Transaction::V0(transaction.clone()).get_hash_and_size().0;
         (transaction, tx_hash)

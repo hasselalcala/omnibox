@@ -6,24 +6,22 @@ use near_sdk::{
     NearToken,
 };
 
+use near_jsonrpc_client::methods;
+use near_primitives::transaction::Transaction;
+use near_primitives::views::TxExecutionStatus;
 use near_workspaces::{network::Sandbox, Account, Contract, Worker};
 use std::{path::Path, sync::Arc};
-use tokio::{task::JoinHandle, sync::Mutex};
-use near_jsonrpc_client::methods;
-use near_primitives::views::TxExecutionStatus;
-use near_primitives::transaction::Transaction;
-use crate::{EventData, block_streamer::extract_logs};
+use tokio::{sync::Mutex, task::JoinHandle};
 
+use crate::{block_streamer::start_polling, constants::*, NonceManager, Signer};
 use crate::{TxBuilder, TxSender};
-use crate::{block_streamer::start_polling, NonceManager, Signer, TransactionProcessor, constants::*};
-
 
 const STANDARD: &str = "mpc-1.0.0";
 const EVENT_RESPOND: &str = "respond";
 const STATUS_COMPLETED: &str = "in progress";
 
 const DEFAULT_WASM_PATH: &str = env!("CARGO_MANIFEST_DIR");
-const TEN_NEAR: NearToken = NearToken::from_near(10);
+//const TEN_NEAR: NearToken = NearToken::from_near(10);
 const HUNDRED_NEAR: NearToken = NearToken::from_near(100);
 
 #[derive(Debug)]
@@ -44,7 +42,7 @@ impl OmniInfo {
 
         let wasm_path = Path::new(DEFAULT_WASM_PATH)
             .join("src")
-            .join("contract.wasm");
+            .join("mpc_contract.wasm");
 
         if !wasm_path.exists() {
             return Err(anyhow::anyhow!("WASM file not found at: {:?}", wasm_path).into());
@@ -87,14 +85,19 @@ impl OmniInfo {
             secret_key: account.secret_key().to_string().parse()?,
         };
 
-        let nonce_manager = Arc::new(NonceManager::new(rpc_client.clone(), Arc::new(signer.clone())));
+        let nonce_manager = Arc::new(NonceManager::new(
+            rpc_client.clone(),
+            Arc::new(signer.clone()),
+        ));
         let tx_builder = Arc::new(Mutex::new(TxBuilder::new(signer.clone(), worker.clone())));
         let tx_sender = Arc::new(TxSender::new(rpc_client.clone(), DEFAULT_TIMEOUT));
 
-        //let processor: Arc<dyn TransactionProcessor> =
-          //  Arc::new(Signer::new(account.id().clone(), nonce_manager.clone(), tx_builder.clone(), tx_sender.clone()));
-
-        let processor = Arc::new(Signer::new(account.id().clone(), nonce_manager.clone()));
+        let processor = Arc::new(Signer::new(
+            account.id().clone(),
+            nonce_manager.clone(),
+            tx_builder.clone(),
+            tx_sender.clone(),
+        ));
 
         let polling_handle = tokio::spawn({
             let rpc_client = rpc_client.clone();
@@ -117,48 +120,6 @@ impl OmniInfo {
         })
     }
 
-    pub async fn call_contract(&self, method: &str, args: Option<Value>) -> Result<Option<Value>> {
-        let result = self
-            .account
-            .call(&self.contract.id(), method)
-            .deposit(TEN_NEAR)
-            .max_gas()
-            .args_json(args.unwrap_or(json!({})))
-            .transact()
-            .await?;
-
-        println!("RESULT CALL CONTRACT: {:?}", result.outcome());
-
-        // if result.is_success() {
-        //     Ok(result.json().ok())
-        // } else {
-        //     Err(anyhow::anyhow!(
-        //         "Contract call failed: {:?}",
-        //         result.outcome()
-        //     ))
-        // }
-        // match result.is_success() {
-        //     near_workspaces::types::ExecutionStatus::SuccessValue(_) |
-        //     near_workspaces::types::ExecutionStatus::SuccessReceiptId(_) => {
-        //         Ok(result.json().ok())
-        //     },
-        //     _ => {
-        //         Err(anyhow::anyhow!(
-        //             "Contract call failed: {:?}",
-        //             result.outcome()
-        //         ))
-        //     }
-        // }
-        if result.is_failure() {
-            Err(anyhow::anyhow!(
-                "Contract call failed: {:?}",
-                result.outcome()
-            ))
-        } else {
-            Ok(result.json().ok())
-        }
-    }
-
     pub async fn view_contract(&self, method: &str, args: Option<Value>) -> Result<Value> {
         let result = self
             .account
@@ -173,62 +134,19 @@ impl OmniInfo {
         Ok(result.json()?)
     }
 
-    // pub async fn sign(
-    //     &self,
-    //     prompt: String,
-    //     //event_data: EventData,
-    // ) -> Result<(), Box<dyn std::error::Error + Send + Sync>>{
+    pub async fn sign(
+        &self,
+        prompt: String,
+    ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+        println!("SIGNING: {:?}", prompt);
 
-    //     println!("SIGNING: {:?}", prompt);
-
-    //     // Transaction to send the sign
-    //     let (nonce, block_hash) = self.nonce_manager.get_nonce_and_tx_hash().await?;
-
-    //     let mut tx_builder = self.tx_builder.lock().await;
-
-    //     let (tx, _) = tx_builder
-    //         .with_method_name("sign")
-    //         .with_args(serde_json::json!({
-    //             "prompt": prompt  
-    //         }))
-    //         .build(nonce, block_hash);
-
-    //     let signer = near_crypto::Signer::from(tx_builder.signer.clone());
-    //     let signed_tx = Transaction::V0(tx).sign(&signer);
-
-    //     let request = methods::send_tx::RpcSendTransactionRequest {
-    //         signed_transaction: signed_tx,
-    //         wait_until: TxExecutionStatus::Final,
-    //     };
-
-    //     let tx_response = self.tx_sender.send_transaction(request).await?;
-    //     let log_tx = extract_logs(&tx_response);
-
-    //     println!("SIGN_LOG: {:?}", log_tx);
-
-    //     Ok(())
-    // }
-
-
-
-pub async fn sign(
-    &self,
-    prompt: String,
-) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
-    println!("SIGNING: {:?}", prompt);
-    
-    // Aumentar el número de intentos y añadir retry logic
-    let max_attempts = 3;
-    let mut attempt = 0;
-    
-    while attempt < max_attempts {
         let (nonce, block_hash) = self.nonce_manager.get_nonce_and_tx_hash().await?;
         let mut tx_builder = self.tx_builder.lock().await;
 
         let (tx, _) = tx_builder
-            .with_method_name("set_greeting")
+            .with_method_name("sign")
             .with_args(serde_json::json!({
-                "greeting": prompt.clone()
+                "prompt": prompt.clone()
             }))
             .build(nonce, block_hash);
 
@@ -237,28 +155,18 @@ pub async fn sign(
 
         let request = methods::send_tx::RpcSendTransactionRequest {
             signed_transaction: signed_tx,
-            wait_until: TxExecutionStatus::Final,
+            wait_until: TxExecutionStatus::None,
         };
 
         match self.tx_sender.send_transaction(request).await {
             Ok(tx_response) => {
-                let log_tx = extract_logs(&tx_response);
-                println!("SIGN_LOG: {:?}", log_tx);
+                println!("Transaction SIGN sent successfully: {:?}", tx_response);
                 return Ok(());
             }
-            Err(e) => {
-                attempt += 1;
-                if attempt == max_attempts {
-                    return Err(e.into());
-                }
-                println!("Attempt {} failed, retrying...", attempt);
+            Err(_e) => {
                 tokio::time::sleep(tokio::time::Duration::from_secs(2)).await;
+                return Err(anyhow::anyhow!("Failed HERE").into());
             }
         }
     }
-    
-    Err(anyhow::anyhow!("Failed after {} attempts", max_attempts).into())
-}
-
-
 }

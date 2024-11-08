@@ -64,6 +64,71 @@ pub async fn fetch_chunk(
     }
 }
 
+// pub async fn find_transaction_in_block(
+//     client: &JsonRpcClient,
+//     block: &BlockView,
+//     account_id: &str,
+//     method_name: &str,
+// ) -> Result<Option<(String, AccountId)>, Box<dyn std::error::Error + Send + Sync>> {
+//     // println!(
+//     //     "Searching for transaction in block: {}",
+//     //     block.header.height
+//     // );
+//     // println!("Account ID: {}", account_id);
+//     // println!("Method name: {}", method_name);
+//     //println!("Block: {:?}", block);
+
+//     for chunk_header in &block.chunks {
+//         //println!("dentro de chunks loop");
+//         //println!("Chunk header: {:?}", chunk_header);
+//         let chunk_hash = chunk_header.chunk_hash;
+//         let chunk = fetch_chunk(client, chunk_hash).await?;
+//         //println!("Chunk: {:?}", chunk);
+
+//         for transaction in &chunk.transactions {
+//             //println!("Transaction: {:?}", transaction);
+//             if transaction.receiver_id == account_id {
+//                 for action in &transaction.actions {
+//                     if let ActionView::FunctionCall {
+//                         method_name: action_method_name,
+//                         ..
+//                     } = action
+//                     {
+//                         if action_method_name == method_name {
+//                             return Ok(Some((
+//                                 transaction.hash.to_string(),
+//                                 transaction.signer_id.clone(),
+//                             )));
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+
+//         for receipt in &chunk.receipts {
+//             if receipt.receiver_id == account_id {
+//                 if let near_primitives::views::ReceiptEnumView::Action { actions, .. } =
+//                     &receipt.receipt
+//                 {
+//                     for action in actions {
+//                         if let ActionView::FunctionCall {
+//                             method_name: action_method_name,
+//                             ..
+//                         } = action
+//                         {
+//                             if action_method_name == method_name {
+//                                 let predecessor_id = receipt.predecessor_id.clone();
+//                                 return Ok(Some((receipt.receipt_id.to_string(), predecessor_id)));
+//                             }
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//     }
+//     Ok(None)
+// }
+
 pub async fn find_transaction_in_block(
     client: &JsonRpcClient,
     block: &BlockView,
@@ -83,7 +148,6 @@ pub async fn find_transaction_in_block(
                     } = action
                     {
                         if action_method_name == method_name {
-                            // Return the transaction hash and the sender account ID
                             return Ok(Some((
                                 transaction.hash.to_string(),
                                 transaction.signer_id.clone(),
@@ -93,6 +157,7 @@ pub async fn find_transaction_in_block(
                 }
             }
         }
+        // Eliminamos el procesamiento de receipts para evitar duplicados
     }
     Ok(None)
 }
@@ -102,23 +167,81 @@ pub async fn get_logs(
     tx_hash: &str,
     sender_account_id: &AccountId,
 ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
+    //println!("Getting logs for tx_hash: {:?}", tx_hash);
     let tx_hash =
         CryptoHash::from_str(tx_hash).map_err(|e| format!("Failed to parse tx_hash: {}", e))?;
+
+    //println!("Transaction hash: {:?}", tx_hash);
 
     let transaction_status_request = methods::tx::RpcTransactionStatusRequest {
         transaction_info: methods::tx::TransactionInfo::TransactionId {
             tx_hash,
             sender_account_id: sender_account_id.clone(),
         },
-        wait_until: near_primitives::views::TxExecutionStatus::Final,
+        wait_until: near_primitives::views::TxExecutionStatus::None,
     };
+    // println!(
+    //     "Transaction status request: {:?}",
+    //     transaction_status_request
+    // );
 
     let transaction_status_response = client.call(transaction_status_request).await?;
 
-    let logs = extract_logs(&transaction_status_response);
+    // println!(
+    //     "Transaction status response: {:?}",
+    //     transaction_status_response
+    // );
 
+    println!("\nExtracting logs...");
+    let logs = extract_logs(&transaction_status_response);
+    println!("Logs: {:?}", logs);
     Ok(logs)
 }
+
+// pub async fn get_logs(
+//     client: &JsonRpcClient,
+//     tx_hash: &str,
+//     sender_account_id: &AccountId,
+// ) -> Result<Vec<String>, Box<dyn std::error::Error + Send + Sync>> {
+//     println!("Getting logs for tx_hash: {:?}", tx_hash);
+//     let tx_hash =
+//         CryptoHash::from_str(tx_hash).map_err(|e| format!("Failed to parse tx_hash: {}", e))?;
+
+//     const MAX_RETRIES: u32 = 10;
+//     const RETRY_DELAY: u64 = 2;
+
+//     for attempt in 0..MAX_RETRIES {
+//         let transaction_status_request = methods::tx::RpcTransactionStatusRequest {
+//             transaction_info: methods::tx::TransactionInfo::TransactionId {
+//                 tx_hash,
+//                 sender_account_id: sender_account_id.clone(),
+//             },
+//             // Cambiamos a Started para obtener una respuesta más rápida
+//             wait_until: near_primitives::views::TxExecutionStatus::None,
+//         };
+
+//         match client.call(transaction_status_request).await {
+//             Ok(response) => {
+//                 println!("Transaction status response: {:?}", response);
+//                 let logs = extract_logs(&response);
+
+//                 // Si encontramos logs, retornamos
+//                 if !logs.is_empty() {
+//                     return Ok(logs);
+//                 }
+//             }
+//             Err(e) => {
+//                 println!("Error getting transaction status (attempt {}): {:?}", attempt + 1, e);
+//             }
+//         }
+
+//         // Si no encontramos logs, esperamos antes de reintentar
+//         println!("No logs found, retrying in {} seconds (attempt {})", RETRY_DELAY, attempt + 1);
+//         tokio::time::sleep(tokio::time::Duration::from_secs(RETRY_DELAY)).await;
+//     }
+
+//     Err("Max retries reached without finding logs".into())
+// }
 
 pub fn extract_logs(response: &RpcTransactionResponse) -> Vec<String> {
     let mut logs = Vec::new();
@@ -144,32 +267,63 @@ pub fn extract_logs(response: &RpcTransactionResponse) -> Vec<String> {
     logs
 }
 
+// fn process_log(log: &str) -> Result<EventData, Box<dyn std::error::Error + Send + Sync>> {
+//     let json_start = log.find("{").ok_or("JSON not found in log")?;
+//     let json_str = &log[json_start..];
+
+//     let event_log: EventLog = serde_json::from_str(json_str)?;
+
+//     event_log
+//         .data
+//         .into_iter()
+//         .next()
+//         .ok_or_else(|| "No EventData found in log".into())
+// }
+
 fn process_log(log: &str) -> Result<EventData, Box<dyn std::error::Error + Send + Sync>> {
-    let json_start = log.find("{").ok_or("JSON not found in log")?;
+    //println!("Raw log: {}", log);
+    let json_start = log
+        .find("{")
+        .ok_or_else(|| String::from("JSON not found in log"))?;
     let json_str = &log[json_start..];
+    //println!("Extracted JSON string: {}", json_str);
 
-    let event_log: EventLog = serde_json::from_str(json_str)?;
+    let event_log: EventLog = match serde_json::from_str(json_str) {
+        Ok(log) => log,
+        Err(e) => {
+            println!("Error deserializing JSON: {}", e);
+            return Err(Box::new(e));
+        }
+    };
 
-    event_log
+    let event_data = event_log
         .data
         .into_iter()
         .next()
-        .ok_or_else(|| "No EventData found in log".into())
+        .ok_or_else(|| String::from("No EventData found in log"))?;
+
+    //println!("Deserialized yield_id: {:?}", event_data.yield_id);
+
+    Ok(event_data)
 }
 
 pub async fn start_polling(
     client: &JsonRpcClient,
-    mut last_processed_block: u64, 
+    mut last_processed_block: u64,
     processor: Arc<dyn TransactionProcessor>,
 ) -> Result<(), Box<dyn std::error::Error + Send + Sync>> {
+    println!("Starting polling...");
+
     loop {
         println!("Last processed block: {}", last_processed_block);
 
         let block_reference = specify_block_reference(last_processed_block);
+        //println!("Block reference: {:?}", block_reference);
         match fetch_block(client, block_reference).await {
             Ok(block) => {
                 println!("Processing block: {:#?}", block.header.height);
 
+                tokio::time::sleep(std::time::Duration::from_secs(5)).await;
                 if let Some((tx_hash, sender_account_id)) = find_transaction_in_block(
                     &client,
                     &block,
@@ -178,15 +332,18 @@ pub async fn start_polling(
                 )
                 .await?
                 {
+                    //println!("Transaction found: {:?}", tx_hash);
                     let logs = get_logs(client, &tx_hash, &sender_account_id).await?;
-
-                    if logs.len() > 1 {
+                    //println!("Logs: {:?}", logs);
+                    if logs.len() > 2 {
                         panic!("More than one log found. Contract might have changed!");
                     }
 
                     if let Some(log) = logs.first() {
                         if let Ok(event) = process_log(log) {
                             let processor_clone = Arc::clone(&processor);
+
+                            println!("\nEmitted event: {:?}\n", event);
 
                             tokio::spawn(async move {
                                 if let Err(e) = processor_clone.process_transaction(event).await {
@@ -197,9 +354,24 @@ pub async fn start_polling(
                             println!("Failed to process log");
                         }
                     } else {
-                        //println!("No logs found for this transaction");
-                        println!("Sign request created");
+                        println!("No logs found for this transaction");
                     }
+
+                    // println!("\n\nTransaction found: {:?}", tx_hash);
+                    // let processor_clone = Arc::clone(&processor);
+                    // let event = EventData {
+                    //     request_id: None,
+                    //     yield_id: None,
+                    //     prompt: None,
+                    //     status: "created".to_string(),
+                    //     response: None,
+                    // };
+
+                    // tokio::spawn(async move {
+                    //     if let Err(e) = processor_clone.process_transaction(event).await {
+                    //         eprintln!("Error processing transaction: {}", e);
+                    //     }
+                    // });
                 }
 
                 // Actualizar el last_processed_block al nuevo bloque procesado
